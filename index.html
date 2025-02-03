@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Fonts Previewer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f4f4f4;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .controls {
+      margin-bottom: 20px;
+      text-align: center;
+      display: flex;
+      gap: 2em;
+      justify-content: center;
+    }
+    .preview {
+      border: 1px solid #ccc;
+      background: #fff;
+      padding: 20px;
+      margin: 10px auto;
+      border-radius: 4px;
+      flex: 1;
+      flex-basis: 300px;
+    }
+    label {
+      font-weight: bold;
+    }
+    input[type="text"], select {
+      width: 300px;
+      padding: 8px;
+      font-size: 16px;
+      margin: 10px auto;
+      display: block;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 16px;
+      margin: 4px 10px;
+      cursor: pointer;
+    }
+    #selectedFonts {
+      max-width: 400px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fff;
+      border-radius: 4px;
+    }
+    #selectedFonts li {
+      font-size: small;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #eee;
+    }
+    #selectedFonts li:last-child {
+      border-bottom: none;
+    }
+    .remove-btn {
+      font-size: smaller;
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 3px 8px;
+      cursor: pointer;
+    }
+    #previews {
+      display: flex;
+      gap: 2em;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Google Fonts Previewer</h1>
+  <div class="controls">
+    <div>
+      <label for="fontFilter">Filter fonts:</label>
+      <input type="text" id="fontFilter" placeholder="Type to filter fonts..." />
+
+      <label for="fontSelect">Select a font:</label>
+      <select id="fontSelect">
+        <option disabled selected>Loading fonts...</option>
+      </select>
+
+      <button id="addFontBtn">Add Font</button>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">Selected Fonts</h3>
+  <ul id="selectedFonts">
+    <!-- Selected fonts will appear here -->
+  </ul>
+    </div>
+  </div>
+  <div>
+    <label for="previewText" style="display:block;text-align:center;">Preview Text:</label>
+      <input
+        type="text"
+        id="previewText"
+        placeholder="Enter preview text..."
+        value="The quick brown fox jumps over the lazy dog"
+        style="width:600px;"
+      />
+  </div>
+  <h2>Previews</h2>
+  <div id="previews"></div>
+
+  <script>
+    // Replace with your actual API key from Google Fonts Developer API
+    const apiKey = "AIzaSyA72kTDDT_PLLNrx3femsNsOyZ1Lqf4ePM";
+
+    const fontFilterInput = document.getElementById('fontFilter');
+    const fontSelect = document.getElementById('fontSelect');
+    const addFontBtn = document.getElementById('addFontBtn');
+    const previewTextInput = document.getElementById('previewText');
+    const selectedFontsList = document.getElementById('selectedFonts');
+    const previewsContainer = document.getElementById('previews');
+
+    let allFonts = []; // Full fonts list from the API.
+    let selectedFonts = []; // Array to store selected fonts.
+
+    // Set to track loaded fonts so we don't load the same font twice.
+    const loadedFonts = new Set();
+
+    // Fetch the full fonts list from the Google Fonts Developer API.
+    function fetchFonts() {
+      fetch(`https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}`)
+        .then(response => response.json())
+        .then(data => {
+          allFonts = data.items;
+          populateFontSelect(allFonts);
+        })
+        .catch(error => {
+          console.error('Error fetching fonts:', error);
+          fontSelect.innerHTML = '<option disabled>Error loading fonts.</option>';
+        });
+    }
+
+    // Populate the single select dropdown with a list of fonts.
+    function populateFontSelect(fonts) {
+      // Sort fonts alphabetically.
+      fonts.sort((a, b) => a.family.localeCompare(b.family));
+      fontSelect.innerHTML = '';
+      fonts.forEach(font => {
+        const option = document.createElement('option');
+        // In Google Fonts URLs, spaces are replaced with '+'
+        option.value = font.family.replace(/ /g, '+');
+        option.textContent = font.family;
+        fontSelect.appendChild(option);
+      });
+    }
+
+    // Filter the fonts in the dropdown based on user input.
+    function filterFonts() {
+      const filterValue = fontFilterInput.value.toLowerCase();
+      const filteredFonts = allFonts.filter(font =>
+        font.family.toLowerCase().includes(filterValue)
+      );
+      populateFontSelect(filteredFonts);
+    }
+
+    // Add a font to the selectedFonts list.
+    function addFont() {
+      const fontValue = fontSelect.value; // e.g., "Open+Sans"
+      const fontName = fontValue.replace(/\+/g, ' ');
+
+      // Prevent adding duplicates.
+      if (selectedFonts.some(f => f.value === fontValue)) {
+        alert(`${fontName} is already selected.`);
+        return;
+      }
+      // Add to selectedFonts state.
+      selectedFonts.push({ value: fontValue, name: fontName });
+      updateSelectedFontsUI();
+      updatePreviews();
+    }
+
+    // Remove a font from the selectedFonts list.
+    function removeFont(fontValue) {
+      selectedFonts = selectedFonts.filter(f => f.value !== fontValue);
+      updateSelectedFontsUI();
+      updatePreviews();
+    }
+
+    // Update the UI list of selected fonts.
+    function updateSelectedFontsUI() {
+      selectedFontsList.innerHTML = '';
+      selectedFonts.forEach(font => {
+        const li = document.createElement('li');
+        li.textContent = font.name;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-btn';
+        removeBtn.textContent = 'Remove';
+        removeBtn.onclick = () => removeFont(font.value);
+        li.appendChild(removeBtn);
+        selectedFontsList.appendChild(li);
+      });
+    }
+
+    // Load a Google Font if not already loaded.
+    function loadGoogleFont(fontFamilyParam) {
+      if (loadedFonts.has(fontFamilyParam)) return;
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${fontFamilyParam}&display=swap`;
+      document.head.appendChild(link);
+      loadedFonts.add(fontFamilyParam);
+    }
+
+    // Update the preview section with the selected fonts and preview text.
+    function updatePreviews() {
+      previewsContainer.innerHTML = ''; // Clear current previews.
+      const text = previewTextInput.value || 'Your preview text here';
+      selectedFonts.forEach(font => {
+        loadGoogleFont(font.value);
+        const previewBlock = document.createElement('div');
+        previewBlock.className = 'preview';
+        previewBlock.style.fontFamily = `'${font.name}', sans-serif`;
+        previewBlock.innerHTML = `<h2>${font.name}</h2><p>${text}</p>`;
+        previewsContainer.appendChild(previewBlock);
+      });
+    }
+
+    // Event listeners.
+    fontFilterInput.addEventListener('input', filterFonts);
+    addFontBtn.addEventListener('click', addFont);
+    previewTextInput.addEventListener('input', updatePreviews);
+
+    // Fetch fonts when the page loads.
+    fetchFonts();
+  </script>
+</body>
+</html>
